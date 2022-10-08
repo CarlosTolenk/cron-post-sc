@@ -23,8 +23,11 @@
   "dependencies": {
     "@nestjs/common": "^9.0.0",
     "@nestjs/core": "^9.0.0",
+    "@nestjs/microservices": "^9.1.4",
     "@nestjs/platform-express": "^9.0.0",
     "@nestjs/schedule": "^2.1.0",
+    "amqp-connection-manager": "^4.1.7",
+    "amqplib": "^0.10.3",
     "nest-puppeteer": "^1.1.1",
     "puppeteer": "^18.0.5",
     "reflect-metadata": "^0.1.13",

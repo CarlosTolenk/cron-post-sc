@@ -1,35 +1,32 @@
-import { Injectable } from "@nestjs/common";
-import * as puppeteer from "puppeteer";
-import { Browser, Page } from "puppeteer";
+import { Inject, Injectable } from '@nestjs/common';
+import * as puppeteer from 'puppeteer';
+import { Browser, Page } from 'puppeteer';
+import { ClientProxy } from '@nestjs/microservices';
+import { POST_RAW } from './services.rabbit';
+
+const BASE_URL = 'https://www.supercasas.com';
+const SEARCH_URL = `${BASE_URL}/buscar?PagingPageSkip`;
+const POST_PER_PAGE = 23;
 
 @Injectable()
 export class ScrapperService {
-  constructor() {
-  }
+  constructor(@Inject(POST_RAW.name) private client: ClientProxy) {}
 
   async getData() {
-    const baseURL = "https://www.supercasas.com/apartamentos";
-    const recentPage = `${baseURL}?recentsPage`;
-    const totalPage = await this.getDataForPage(baseURL, this.getCountPage);
-    const listPage = this.convertTotalInArray(Number(totalPage));
+    const url = `${SEARCH_URL}=0`;
 
-    const sourceDate = listPage.map(async (pageNumber) => {
-      const x = await this.getDataForPage(
-        `${recentPage}/${pageNumber}`,
-        this.exampleScrappingPage
-      );
-      console.log(x);
-      return x;
-    });
+    const totalPost = await this.getDataForPage<any>(url, this.getTotalPost);
+    const listPage = this.convertTotalInArray(totalPost);
+    this.requestForScraping(SEARCH_URL, listPage);
 
     return {
-      data: listPage
+      total: listPage.length,
     };
   }
 
   private async prepareBrowser(): Promise<Browser> {
     return await puppeteer.launch({
-      headless: true
+      headless: true,
     });
   }
 
@@ -37,35 +34,61 @@ export class ScrapperService {
     return await browser.newPage();
   }
 
+  private async requestForScraping(
+    searchURL: string,
+    listPage: Array<number>,
+  ): Promise<void> {
+    for (const pageNumber of listPage) {
+      const url = `${searchURL}=${pageNumber}`;
+      const data = await this.getDataForPage(
+        `${url}`,
+        this.exampleScrappingPage,
+      );
+
+      this.publishEvent(data, url);
+    }
+  }
+
+  private publishEvent(data: any, urlSource: string): void {
+    this.client.emit(POST_RAW.queue, { ...data, urlSource });
+  }
+
   private exampleScrappingPage() {
-    let sources = document.querySelector(".generic-results");
-    let list = Array.from(sources.querySelectorAll("li.normal"));
-    return list.map((element) => {
-      let anchorURL = element.querySelector("a").href;
-      let imageURL = element.querySelector("img").src;
-      let type = element.querySelector(".title1").textContent;
-      let sector = element.querySelector(".title2").textContent;
-      let price = element.querySelector(".title3").textContent;
+    let sources = document.querySelector('#bigsearch-results-inner-container');
+    let list = Array.from(sources.querySelectorAll('li.normal'));
+    const data = list.map((element) => {
+      let anchorURL = element.querySelector('a').href;
+      let imageURL = element.querySelector('img').src;
+      let type = element.querySelector('.type').textContent;
+      let sector = element.querySelector('.title1').textContent;
+      let price = element.querySelector('.title2').textContent;
+      let anchorURLArray = anchorURL.split('/');
+      let id = anchorURLArray[anchorURLArray.length - 2];
       return {
+        id,
         anchorURL,
         imageURL,
         type,
         sector,
-        price
+        price,
       };
     });
+    return data.filter(({ id }) => !!id);
   }
 
-  private getCountPage(): any {
-    let sources = document.querySelector(".homerow-5-recent-nav");
-    let textPlain = sources.querySelector("span").textContent;
-    let arrayText = textPlain.split("/");
-    return arrayText[arrayText.length - 1];
+  private getTotalPost(): any {
+    let sources = document.querySelector(
+      '#bigsearch-results-inner-topbar-counter',
+    );
+    let textPlain = sources.querySelector('#UpperCounter2').textContent;
+    let totalPostPlain = textPlain.split('+')[0].replace(',', '');
+    return Number(totalPostPlain);
   }
 
-  private convertTotalInArray(total: number): Array<number> {
+  private convertTotalInArray(totalPost: number): Array<number> {
+    const totalPage = Math.floor(totalPost / POST_PER_PAGE);
     const array = [];
-    for (let i = 1; i <= total; i++) {
+    for (let i = 1; i <= totalPage; i++) {
       array.push(i);
     }
 
@@ -74,12 +97,12 @@ export class ScrapperService {
 
   private async getDataForPage<T>(
     pageURL: string,
-    callback: Function
+    callback: Function,
   ): Promise<any> {
     const browser: Browser = await this.prepareBrowser();
     const page = await this.getPageInBrowser(browser);
     await page.goto(pageURL, {
-      waitUntil: "networkidle2"
+      waitUntil: 'networkidle2',
     });
 
     // @ts-ignore
