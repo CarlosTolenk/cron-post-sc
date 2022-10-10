@@ -51,7 +51,7 @@ export class ScrapperService {
       const url = `${searchURL}=${pageNumber}`;
       const data: PostRaw[] = await this.getDataForPage<PostRaw[]>(
         `${url}`,
-        this.exampleScrappingPage,
+        this.getDataRawScrappingPage,
       );
 
       this.publishEvents(data, url);
@@ -68,7 +68,7 @@ export class ScrapperService {
     this.client.emit(POST_RAW.queue, { ...data, urlSource });
   }
 
-  private exampleScrappingPage() {
+  private getDataRawScrappingPage() {
     try {
       let sources = document.querySelector(
         '#bigsearch-results-inner-container',
