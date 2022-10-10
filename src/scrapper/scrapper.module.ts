@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScrapperService } from './scrapper.service';
 import { ScrapperController } from './scrapper.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { POST_RAW } from './services.rabbit';
+import { POST_RAW } from '../common/interfaces';
 
 @Module({
   imports: [

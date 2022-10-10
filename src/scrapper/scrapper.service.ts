@@ -2,20 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import * as puppeteer from 'puppeteer';
 import { Browser, Page } from 'puppeteer';
 import { ClientProxy } from '@nestjs/microservices';
-import { POST_RAW } from './services.rabbit';
+import { POST_RAW, PostRaw } from "../common/interfaces";
 
 const BASE_URL = 'https://www.supercasas.com';
 const SEARCH_URL = `${BASE_URL}/buscar?PagingPageSkip`;
 const POST_PER_PAGE = 23;
-
-interface PostRaw {
-  id: string;
-  anchorURL: string;
-  imageURL: string;
-  type: string;
-  sector: string;
-  price: string;
-}
 
 @Injectable()
 export class ScrapperService {
